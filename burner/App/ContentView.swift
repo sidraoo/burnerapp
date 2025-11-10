@@ -6,6 +6,7 @@ struct ContentView: View {
     @StateObject private var onboardingManager = OnboardingManager()
     @StateObject private var burnerManager = BurnerModeManager()
     @State private var showLocationPrompt = false
+    @AppStorage("hasSeenLocationPrompt") private var hasSeenLocationPrompt = false
 
     var body: some View {
         ZStack {
@@ -38,13 +39,35 @@ struct ContentView: View {
         .onAppear {
             // Load initial data when the app starts
             appState.loadInitialData()
+            
+            // Check if we should show location prompt
+            checkLocationPrompt()
         }
         .onChange(of: onboardingManager.shouldShowOnboarding) { _, isShowing in
             // Show location prompt after onboarding is complete
-            if !isShowing && !appState.locationManager.hasLocationPreference {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    showLocationPrompt = true
-                }
+            if !isShowing {
+                checkLocationPrompt()
+            }
+        }
+        .onChange(of: appState.locationManager.hasLocationPreference) { _, hasPreference in
+            // Hide prompt when location preference is set
+            if hasPreference {
+                showLocationPrompt = false
+                hasSeenLocationPrompt = true
+            }
+        }
+    }
+    
+    private func checkLocationPrompt() {
+        // Show location prompt if:
+        // 1. Onboarding is complete
+        // 2. User hasn't set location preference
+        // 3. Not already showing the prompt
+        if !onboardingManager.shouldShowOnboarding &&
+           !appState.locationManager.hasLocationPreference &&
+           !showLocationPrompt {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showLocationPrompt = true
             }
         }
     }
