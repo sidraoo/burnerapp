@@ -9,19 +9,22 @@ struct EventRow: View {
     let bookmarkManager: BookmarkManager?
     let configuration: Configuration
     let onCancel: (() -> Void)?
+    let distanceText: String?
     
     init(
         event: Event,
         ticket: Ticket? = nil,
         bookmarkManager: BookmarkManager? = nil,
         configuration: Configuration = .eventList,
-        onCancel: (() -> Void)? = nil
+        onCancel: (() -> Void)? = nil,
+        distanceText: String? = nil
     ) {
         self.event = event
         self.ticket = ticket
         self.bookmarkManager = bookmarkManager
         self.configuration = configuration
         self.onCancel = onCancel
+        self.distanceText = distanceText
     }
     
     var body: some View {
@@ -108,6 +111,18 @@ struct EventRow: View {
                 Text(event.startTime?.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()) ?? "-")
                     .appSecondary()
                     .foregroundColor(.gray)
+            }
+            
+            // Show distance if available
+            if let distance = distanceText {
+                HStack(spacing: 4) {
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.gray)
+                    Text(distance)
+                        .appCaption()
+                        .foregroundColor(.gray)
+                }
             }
             
             // Only show cancelled badge here
