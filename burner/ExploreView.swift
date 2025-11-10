@@ -1,5 +1,6 @@
 import SwiftUI
 import Kingfisher
+import CoreLocation
 
 struct ExploreView: View {
     @EnvironmentObject var eventViewModel: EventViewModel
@@ -7,6 +8,7 @@ struct ExploreView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var coordinator: NavigationCoordinator
     @EnvironmentObject var tagViewModel: TagViewModel
+    @EnvironmentObject var locationManager: LocationManager
 
     @State private var searchText = ""
     @State private var selectedEvent: Event? = nil
@@ -71,6 +73,35 @@ struct ExploreView: View {
     
     var popularEventsPreview: [Event] {
         Array(popularEvents.prefix(5))
+    }
+    
+    // MARK: - Nearby Events
+    var nearbyEvents: [Event] {
+        guard locationManager.hasLocationPreference,
+              let userLocation = locationManager.currentLocation else {
+            return []
+        }
+        
+        return eventViewModel.events
+            .filter { event in
+                guard let startTime = event.startTime else { return false }
+                return !event.isFeatured && startTime > Date()
+            }
+            .compactMap { event -> (event: Event, distance: CLLocationDistance)? in
+                guard let coordinates = event.coordinates else { return nil }
+                let eventLocation = CLLocation(
+                    latitude: coordinates.latitude,
+                    longitude: coordinates.longitude
+                )
+                let distance = userLocation.distance(from: eventLocation)
+                return (event, distance)
+            }
+            .sorted { $0.distance < $1.distance }
+            .map { $0.event }
+    }
+    
+    var nearbyEventsPreview: [Event] {
+        Array(nearbyEvents.prefix(5))
     }
     
     // MARK: - Genre-Based Events
@@ -163,6 +194,19 @@ struct ExploreView: View {
                     allEvents: popularEvents,  // NEW: Pass all events
                     bookmarkManager: bookmarkManager,
                     showViewAllButton: false
+                )
+            }
+            
+            // Nearby Section - NEW: Show events near user's location
+            if !nearbyEvents.isEmpty {
+                EventSection(
+                    title: "Nearby",
+                    events: nearbyEventsPreview,
+                    allEvents: nearbyEvents,
+                    bookmarkManager: bookmarkManager,
+                    showViewAllButton: nearbyEvents.count > 5,
+                    showDistance: true,
+                    locationManager: locationManager
                 )
             }
             
@@ -272,19 +316,25 @@ struct EventSection: View {
     let allEvents: [Event]        // NEW: All events for navigation
     let bookmarkManager: BookmarkManager
     let showViewAllButton: Bool
+    let showDistance: Bool
+    let locationManager: LocationManager?
     
     init(
         title: String,
         events: [Event],
         allEvents: [Event]? = nil,  // NEW: Optional, defaults to events
         bookmarkManager: BookmarkManager,
-        showViewAllButton: Bool = true
+        showViewAllButton: Bool = true,
+        showDistance: Bool = false,
+        locationManager: LocationManager? = nil
     ) {
         self.title = title
         self.events = events
         self.allEvents = allEvents ?? events  // Use allEvents if provided, otherwise use events
         self.bookmarkManager = bookmarkManager
         self.showViewAllButton = showViewAllButton
+        self.showDistance = showDistance
+        self.locationManager = locationManager
     }
     
     var body: some View {
@@ -320,7 +370,8 @@ struct EventSection: View {
                     NavigationLink(value: NavigationDestination.eventDetail(event)) {
                         EventRow(
                             event: event,
-                            bookmarkManager: bookmarkManager
+                            bookmarkManager: bookmarkManager,
+                            distanceText: showDistance && locationManager != nil ? getDistanceText(for: event) : nil
                         )
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -328,6 +379,17 @@ struct EventSection: View {
             }
         }
         .padding(.bottom, 40)
+    }
+    
+    private func getDistanceText(for event: Event) -> String? {
+        guard let locationManager = locationManager,
+              let coordinates = event.coordinates else {
+            return nil
+        }
+        return locationManager.formattedDistance(to: CLLocationCoordinate2D(
+            latitude: coordinates.latitude,
+            longitude: coordinates.longitude
+        ))
     }
 }
 

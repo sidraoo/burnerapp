@@ -13,6 +13,7 @@ class AppState: ObservableObject {
     @Published var authService: AuthenticationService
     @Published var burnerModeMonitor: BurnerModeMonitor
     @Published var passwordlessAuthHandler: PasswordlessAuthHandler
+    @Published var locationManager: LocationManager
 
     // MARK: - Navigation Coordinator
     @Published var navigationCoordinator: NavigationCoordinator
@@ -82,6 +83,9 @@ class AppState: ObservableObject {
 
         // Initialize Passwordless Auth Handler
         self.passwordlessAuthHandler = PasswordlessAuthHandler()
+
+        // Initialize Location Manager
+        self.locationManager = LocationManager()
 
         // Initialize Burner Mode Monitor (will start monitoring immediately)
         self.burnerModeMonitor = BurnerModeMonitor(burnerManager: burnerManager)
